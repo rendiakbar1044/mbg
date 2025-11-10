@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checklist Pengembalian Tempat Makan</title>
+    <!-- Memuat Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Menggunakan font Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Style kustom untuk checkbox */
+        .custom-checkbox:checked + .label-text {
+            text-decoration: line-through;
+            color: #9CA3AF; /* gray-400 */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen py-10 px-4">
+
+    <div class="bg-white w-full max-w-3xl mx-auto rounded-xl shadow-2xl p-6 md:p-10">
+        
+        <!-- Judul -->
+        <h1 class="text-3xl md:text-4xl font-bold text-center text-gray-800 mb-8">
+            Checklist Pengembalian Tempat Makan MBG
+        </h1>
+
+        <!-- 1. Bagian Checklist Harian -->
+        <div class="mb-8">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4">Checklist Harian</h2>
+            
+            <!-- Pemilih Tanggal -->
+            <div>
+                <label for="date-picker" class="block text-sm font-medium text-gray-700 mb-1">Pilih Tanggal</label>
+                <input type="date" id="date-picker" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+            </div>
+
+            <!-- Judul Tanggal yang Dipilih -->
+            <h3 class="text-xl font-semibold text-gray-600 mt-6 mb-3">
+                Daftar untuk tanggal: <span id="selected-date-display" class="text-blue-600"></span>
+            </h3>
+
+            <!-- Daftar Checklist per Kelas -->
+            <div id="checklist-container" class="space-y-3">
+                <!-- 
+                    Contoh item (dihasilkan oleh JS):
+                    <div class="flex items-center p-4 bg-gray-50 rounded-lg shadow-sm">
+                        <input type="checkbox" id="chk-kelas-10-a" data-class="Kelas 10-A" class="custom-checkbox h-6 w-6 rounded text-blue-600 focus:ring-blue-500 border-gray-300">
+                        <label for="chk-kelas-10-a" class="label-text ml-3 text-lg font-medium text-gray-800">Kelas 10-A</label>
+                    </div>
+                -->
+            </div>
+            
+            <!-- Pesan jika daftar kelas kosong -->
+            <div id="empty-checklist-state" class="text-center p-6 bg-gray-50 rounded-lg mt-4 hidden">
+                <p class="text-gray-500">Belum ada daftar kelas.</p>
+                <p class="text-gray-400 text-sm">Silakan tambahkan kelas di bagian "Kelola Daftar Kelas" di bawah.</p>
+            </div>
+        </div>
+
+        <!-- Garis Pemisah -->
+        <hr class="my-10 border-gray-200">
+
+        <!-- 2. Bagian Kelola Kelas -->
+        <div>
+            <h2 class="text-2xl font-semibold text-gray-700 mb-6">Kelola Daftar Kelas</h2>
+
+            <!-- Form Tambah Kelas -->
+            <form id="add-class-form" class="flex flex-col sm:flex-row gap-3 mb-6">
+                <input type="text" id="new-class-name" placeholder="Contoh: Kelas 10-A" class="flex-grow p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" required>
+                <button type="submit" class="w-full sm:w-auto bg-blue-600 text-white font-semibold p-3 px-6 rounded-lg shadow-md hover:bg-blue-700 active:bg-blue-800 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                    Tambah Kelas
+                </button>
+            </form>
+
+            <!-- Daftar Kelas yang Dikelola -->
+            <h3 class="text-lg font-medium text-gray-600 mb-3">Daftar Kelas Saat Ini:</h3>
+            <div id="class-management-list" class="space-y-2">
+                <!-- 
+                    Contoh item (dihasilkan oleh JS):
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <span class="font-medium text-gray-700">Kelas 10-A</span>
+                        <button data-class="Kelas 10-A" class="delete-class-btn text-red-500 hover:text-red-700 font-medium transition-colors text-sm">
+                            Hapus
+                        </button>
+                    </div>
+                -->
+            </div>
+
+            <!-- Pesan jika daftar kelola kosong -->
+            <div id="empty-management-state" class="text-center p-4 bg-gray-50 rounded-lg mt-4 hidden">
+                <p class="text-gray-500 text-sm">Daftar kelas kosong.</p>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Kunci Penyimpanan ---
+            const checklistDataKey = 'makanChecklistData';
+            const masterClassListKey = 'makanMasterClassList';
+
+            // --- Elemen DOM ---
+            const datePicker = document.getElementById('date-picker');
+            const selectedDateDisplay = document.getElementById('selected-date-display');
+            const checklistContainer = document.getElementById('checklist-container');
+            const addClassForm = document.getElementById('add-class-form');
+            const newClassNameInput = document.getElementById('new-class-name');
+            const classManagementList = document.getElementById('class-management-list');
+            const emptyChecklistState = document.getElementById('empty-checklist-state');
+            const emptyManagementState = document.getElementById('empty-management-state');
+
+            // --- State Aplikasi ---
+            let currentDate = '';
+            // Data utama: { "2025-11-10": { "Kelas 10-A": true, "Kelas 10-B": false }, ... }
+            let checklistData = JSON.parse(localStorage.getItem(checklistDataKey)) || {};
+            // Daftar master kelas: ["Kelas 10-A", "Kelas 10-B", "Kelas 11-A"]
+            let allClasses = JSON.parse(localStorage.getItem(masterClassListKey)) || [];
+
+            // --- Fungsi Helper ---
+
+            // Menyimpan data checklist ke localStorage
+            function saveData() {
+                localStorage.setItem(checklistDataKey, JSON.stringify(checklistData));
+            }
+
+            // Menyimpan daftar master kelas ke localStorage
+            function saveClasses() {
+                localStorage.setItem(masterClassListKey, JSON.stringify(allClasses));
+            }
+
+            // Format tanggal (YYYY-MM-DD) menjadi "DD MMMM YYYY" (mis: "10 November 2025")
+            function formatDisplayDate(dateString) {
+                const date = new Date(dateString + 'T00:00:00'); // Atasi masalah zona waktu
+                return date.toLocaleDateString('id-ID', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric'
+                });
+            }
+
+            // --- Fungsi Render ---
+
+            // Render daftar checklist untuk tanggal yang dipilih
+            function renderChecklist() {
+                checklistContainer.innerHTML = ''; // Kosongkan daftar
+                
+                // Tampilkan tanggal yang diformat
+                selectedDateDisplay.textContent = formatDisplayDate(currentDate);
+
+                // Cek jika daftar kelas kosong
+                if (allClasses.length === 0) {
+                    emptyChecklistState.classList.remove('hidden');
+                    return;
+                }
+                emptyChecklistState.classList.add('hidden');
+
+                // Dapatkan data untuk hari ini, atau objek kosong jika belum ada
+                const dayData = checklistData[currentDate] || {};
+
+                allClasses.forEach(className => {
+                    const isReturned = dayData[className] || false; // Default: false (belum dikembalikan)
+                    const uniqueId = `check-${currentDate}-${className.replace(/\s+/g, '-')}`;
+
+                    const itemElement = document.createElement('div');
+                    itemElement.className = 'flex items-center p-4 bg-gray-50 rounded-lg shadow-sm transition-all';
+                    
+                    itemElement.innerHTML = `
+                        <input 
+                            type="checkbox" 
+                            id="${uniqueId}" 
+                            data-class="${className}" 
+                            class="custom-checkbox check-item h-6 w-6 rounded text-blue-600 focus:ring-blue-500 border-gray-300 cursor-pointer"
+                            ${isReturned ? 'checked' : ''}
+                        >
+                        <label 
+                            for="${uniqueId}" 
+                            class="label-text ml-3 text-lg font-medium ${isReturned ? 'line-through text-gray-400' : 'text-gray-800'} cursor-pointer"
+                        >
+                            ${className}
+                        </label>
+                    `;
+                    checklistContainer.appendChild(itemElement);
+                });
+            }
+
+            // Render daftar kelas di bagian "Kelola"
+            function renderClassManagement() {
+                classManagementList.innerHTML = ''; // Kosongkan daftar
+
+                if (allClasses.length === 0) {
+                    emptyManagementState.classList.remove('hidden');
+                    return;
+                }
+                emptyManagementState.classList.add('hidden');
+
+                allClasses.forEach(className => {
+                    const itemElement = document.createElement('div');
+                    itemElement.className = 'flex items-center justify-between p-3 bg-gray-100 rounded-lg';
+                    itemElement.innerHTML = `
+                        <span class="font-medium text-gray-700">${className}</span>
+                        <button 
+                            data-class="${className}" 
+                            class="delete-class-btn text-red-500 hover:text-red-700 font-medium transition-colors text-sm"
+                        >
+                            Hapus
+                        </button>
+                    `;
+                    classManagementList.appendChild(itemElement);
+                });
+            }
+
+            // Panggil kedua fungsi render
+            function renderAll() {
+                renderChecklist();
+                renderClassManagement();
+            }
+
+            // --- Event Listeners ---
+
+            // Saat tanggal diubah
+            datePicker.addEventListener('change', (e) => {
+                currentDate = e.target.value;
+                renderChecklist();
+            });
+
+            // Saat checklist item (checkbox) di-klik
+            checklistContainer.addEventListener('change', (e) => {
+                if (e.target.classList.contains('check-item')) {
+                    const className = e.target.dataset.class;
+                    const isReturned = e.target.checked;
+
+                    // Buat entri data untuk hari itu jika belum ada
+                    if (!checklistData[currentDate]) {
+                        checklistData[currentDate] = {};
+                    }
+
+                    // Set status
+                    checklistData[currentDate][className] = isReturned;
+                    saveData();
+                    
+                    // Render ulang checklist untuk update style line-through
+                    renderChecklist();
+                }
+            });
+
+            // Saat form tambah kelas disubmit
+            addClassForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const newName = newClassNameInput.value.trim();
+
+                if (newName && !allClasses.includes(newName)) {
+                    allClasses.push(newName);
+                    allClasses.sort(); // Jaga agar tetap terurut
+                    saveClasses();
+                    renderAll(); // Render ulang semuanya
+                    newClassNameInput.value = '';
+                } else if (allClasses.includes(newName)) {
+                    // Seharusnya tidak menggunakan alert, tapi ini cara sederhana
+                    // Di aplikasi nyata, gunakan modal atau pesan error inline
+                    console.warn('Nama kelas sudah ada!');
+                    newClassNameInput.focus();
+                }
+            });
+
+            // Saat tombol hapus kelas di-klik
+            classManagementList.addEventListener('click', (e) => {
+                if (e.target.classList.contains('delete-class-btn')) {
+                    const className = e.target.dataset.class;
+                    
+                    // Konfirmasi (di aplikasi nyata, gunakan modal kustom)
+                    // if (!confirm(`Yakin ingin menghapus "${className}" dari daftar master?`)) {
+                    //     return;
+                    // }
+
+                    allClasses = allClasses.filter(c => c !== className);
+                    saveClasses();
+                    renderAll(); // Render ulang semuanya
+                }
+            });
+
+            // --- Inisialisasi ---
+            function init() {
+                // Set tanggal hari ini sebagai default
+                const today = new Date().toISOString().split('T')[0];
+                datePicker.value = today;
+                currentDate = today;
+
+                // Jika tidak ada kelas, tambahkan beberapa contoh
+                if (allClasses.length === 0) {
+                    allClasses = ['Kelas 10-A', 'Kelas 10-B', 'Kelas 11-A', 'Kelas 11-B', 'Kelas 12-A', 'Kelas 12-B'];
+                    saveClasses();
+                }
+
+                // Render aplikasi
+                renderAll();
+            }
+
+            init();
+        });
+    </script>
+</body>
+</html>
